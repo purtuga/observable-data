@@ -99,14 +99,22 @@ const ObservableObject = Compose.extend(/** @lends ObservableObject.prototype */
     /**
      * Add a callback to changes on a given property
      *
-     * @param {String} prop
-     *  Object property name
+     * @param {String|Object} prop
+     *  Object property name. If wanting to list to all changes to the object, the
+     *  object instance itself can be passed as the prop.
      *
      * @param {Function} callback
      *  A callback function to list to the event. The callback function
      *  can cancel any queued event callbacks by returning `true` (boolean).
      *
      * @return {EventListener}
+     *
+     * @example
+     *
+     * obj.on("firstName", () => {});
+     *
+     * // List to all changes
+     * obj.on(obj, () => {});
      */
     on: function(prop, callback){
         return watchProp(this, prop, callback);
@@ -534,8 +542,8 @@ export function observableAssign(observable, ...objs) {
     if (objs.length) {
         arrayForEach(objs, obj => {
             arrayForEach(objectKeys(obj), key => {
-                observable[key] = obj[key];
                 makePropWatchable(observable, key);
+                observable[key] = obj[key];
             });
         });
     }
@@ -580,13 +588,20 @@ export function makeObservable(observable, propName, deep) {
  *
  * @param {Object} observable
  * @param {String} propName
+ *  The `observable` property name or, if wanting to list to all property changes,
+ *  the actual `observable` instance
  * @param {Function} notifier
  * @returns {EventEmitter#EventListener}
  */
 export function watchProp(observable, propName, notifier) {
-    if (propName === observable || objectHasOwnProperty(observable, propName)) {
-        const inst = makePropWatchable(observable, propName);
-        return inst.on(propName === observable ? inst : propName, notifier);
+    const inst = getInstance(observable);
+
+    if (propName === observable) {
+        return inst.on(inst, notifier);
+    }
+    else if (objectHasOwnProperty(observable, propName)){
+        makePropWatchable(observable, propName);
+        return inst.on(propName, notifier);
     }
     else {
         return noopEventListener;
@@ -603,9 +618,14 @@ export function watchProp(observable, propName, notifier) {
  * @returns {EventEmitter#EventListener}
  */
 export function watchPropOnce(observable, propName, notifier) {
-    if (propName === observable || objectHasOwnProperty(observable, propName)) {
-        const inst = makePropWatchable(observable, propName);
-        return inst.once(propName === observable ? inst : propName, notifier);
+    const inst = getInstance(observable);
+
+    if (propName === observable) {
+        return inst.once(inst, notifier);
+    }
+    else if (objectHasOwnProperty(observable, propName)){
+        makePropWatchable(observable, propName);
+        return inst.once(propName, notifier);
     }
     else {
         return noopEventListener;

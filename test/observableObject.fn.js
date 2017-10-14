@@ -9,7 +9,7 @@ const {
     createComputedProp  } = require("../src/ObservableObject");
 
 test("makeObservable()", t => {
-    t.plan(11);
+    t.plan(12);
 
     let changeNotify = () => {changeNotify.count = changeNotify.count || 0;  changeNotify.count++};
     let obj = { firstName: "paul" };
@@ -22,6 +22,7 @@ test("makeObservable()", t => {
     t.equal(obj.on, undefined, "No .on() method");
     t.equal(obj.emit, undefined, "No .on() method");
     t.equal(obj.once, undefined, "No .on() method");
+    t.equal(Object.keys(obj).length, 1, "Object does not have additioanl props");
     t.equal(obj.destroy, undefined, "No .destroy() method");
 
     obj.firstName = "PAUL";

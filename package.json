@@ -5,7 +5,7 @@
   "main": "index.js",
   "devDependencies": {
     "@std/esm": "^0.9.2",
-    "common-micro-libs": "github:purtuga/common-micro-libs#computed-properties",
+    "common-micro-libs": "github:purtuga/common-micro-libs#master",
     "tape": "^4.8.0"
   },
   "scripts": {
