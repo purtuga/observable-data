@@ -1,6 +1,8 @@
 require             = require('@std/esm')(module, { cjs: true, esm: 'js' });
 const test          = require("tape");
-const ObservableArray    = require("../src/ObservableArray").default;
+const {
+    default:ObservableArray,
+    mixin }    = require("../src/ObservableArray");
 
 test("ObservableArray", t => {
     const getCallback = () => {
@@ -100,6 +102,17 @@ test("ObservableArray", t => {
         st.ok(resp === data, ".reverse() return original array (mutated)");
 
         st.end()
+    });
+
+    t.test("mixin", st => {
+        let arr = origArr = [1];
+        mixin(arr);
+
+        st.equal(arr, origArr, "array remains intact");
+        st.equal(typeof arr.on, "function", "has on() method");
+        st.equal(typeof arr.emit, "function", "has emit() method");
+
+        st.end();
     });
 
     t.end();

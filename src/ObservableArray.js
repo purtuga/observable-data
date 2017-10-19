@@ -9,7 +9,9 @@ const changeMethods     = [
     'push',
     'shift',
     'splice',
-    'unshift'
+    'unshift',
+    'sort',
+    'reverse'
 ];
 
 /**
@@ -24,7 +26,7 @@ const changeMethods     = [
  *
  * @fires ObservableArray#change
  */
-var ObservableArray = /** @lends ObservableArray.prototype */{
+let ObservableArray = /** @lends ObservableArray.prototype */{
     init: function(initialValues){
         if (isArray(initialValues)) {
             this.push(...initialValues);
@@ -97,6 +99,39 @@ Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
         return response;
     }
 });
+
+/**
+ * Make an array instance observable in place
+ *
+ * @param {Array} arr
+ *
+ * @return {Array}
+ */
+export function mixin(arr) {
+    if (!isArray(arr)) {
+        arr = [];
+    }
+
+    const observableArrayPrototype = ObservableArray.prototype;
+
+    // If it looks like it is already an observable, then exit
+    if (arr.push === observableArrayPrototype.push) {
+        return arr;
+    }
+
+    // FIXME: would use of Object.setPrototypeOf or setting [].__proto__ be better? Need to investigate
+    for (let prop in observableArrayPrototype){
+        /* eslint-disable */
+        objectDefineProp(arr, prop, {
+            value:          observableArrayPrototype[prop],
+            writable:       true,
+            configurable:   true
+        });
+        /* eslint-enable */
+    }
+    return arr;
+}
+
 
 ObservableArray = EventEmitter.extend(ObservableArray);
 
