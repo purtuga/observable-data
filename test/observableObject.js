@@ -70,18 +70,32 @@ test("ObservableObject", t => {
             });
     });
 
-    t.test(".setObservableProp() method", st => {
-        st.plan(3);
+    t.test(".setProp() method", st => {
+        st.plan(4);
 
         const obj = ObservableObject.create();
-        let setReturnValue = obj.setProp("name", "paul");
+        const changeNotify = () => {
+            changeNotify.count = changeNotify.count || 0;  changeNotify.count++
+        };
 
+        obj.on(obj, changeNotify);
+
+        let setReturnValue = obj.setProp("name", "paul");
         st.equal(setReturnValue, "paul", "setObservableProp() return value that was given on input");
-        obj.once("name", () => {
-            st.pass("prop was created as watchable");
-            st.equal(obj.name, "john", "new value was set");
-        });
-        obj.name = "john";
+
+        delay()
+            .then(() => {
+                // Fired twice - one to create the prop; 2nd time to set value
+                st.equal(changeNotify.count, 2, "Event fired when prop was added");
+
+                obj.once("name", () => {
+                    st.pass("prop was created as watchable");
+                    st.equal(obj.name, "john", "new value was set");
+                });
+
+                obj.name = "john";
+            })
+            .catch(console.error.bind(console));
     });
 
     t.test("Emits Events", st => {

@@ -196,6 +196,17 @@ function getInstance(observableObj){
         const watched = instData.watched = {};
 
         instData.opt = objectExtend({}, ObservableObject.defaults);
+        let isQueued = false;
+        instData.notify = () => {
+            if (isQueued) {
+                return;
+            }
+            isQueued = true;
+            nextTick(() => {
+                instData.emit("");
+                isQueued = false;
+            });
+        };
 
         PRIVATE.set(observableObj, instData);
 
@@ -331,15 +342,16 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
  * @return {EventEmitter}
  */
 function makePropWatchable(observable, propName, valueGetter, valueSetter){
-    let inst            = getInstance(observable);
-    let watched         = inst.watched;
-    let currentValue, propDescriptor;
+    let inst    = getInstance(observable);
+    let watched = inst.watched;
 
     if (watched[propName]){
         return inst;
     }
 
-    propDescriptor = Object.getOwnPropertyDescriptor(observable, propName);
+    let currentValue;
+    const emitNotification  = !(propName in observable);
+    const propDescriptor    = Object.getOwnPropertyDescriptor(observable, propName);
 
     if (propDescriptor) {
         if (propDescriptor.configurable === false) {
@@ -414,6 +426,10 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter){
 
     } else {
         console.log(new Error("Unable to watch property [" + propName + "] - delete failed"));
+    }
+
+    if (emitNotification) {
+        inst.notify();
     }
 
     return inst;
@@ -682,7 +698,6 @@ export function observableMixin(observable) {
     }
     return observable;
 }
-
 
 ObservableObject.createComputed = createComputedProp;
 ObservableObject.mixin = observableMixin;
