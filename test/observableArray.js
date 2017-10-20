@@ -30,6 +30,16 @@ test("ObservableArray", t => {
             st.equal(typeof data[arrayMethod], "function", `has ${ arrayMethod } instance method`);
         });
 
+        const data1 = [];
+        const push = () => {push.count = push.count || 0;  push.count++};
+        data1.push = push;
+
+        // ObservableArray.create() should change array passed on input
+        ObservableArray.create(data1);
+
+        data1.push("hello");
+        t.equal(push.count, 1, "original array method is called");
+
         st.end();
     });
 
@@ -49,6 +59,8 @@ test("ObservableArray", t => {
         st.equal(data.length, 2, "has length 2 when item is pop'd");
 
         st.equal(data.length, data.size(), "size prop equals length prop");
+
+        st.equal(data.len, data.size(), "len property is same as size()");
 
         st.end();
     });

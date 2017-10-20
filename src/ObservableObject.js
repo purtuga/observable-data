@@ -591,6 +591,7 @@ export function makeObservable(observable, propName, deep) {
  *  The `observable` property name or, if wanting to list to all property changes,
  *  the actual `observable` instance
  * @param {Function} notifier
+ *
  * @returns {EventEmitter#EventListener}
  */
 export function watchProp(observable, propName, notifier) {

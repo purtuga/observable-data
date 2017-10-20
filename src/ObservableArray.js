@@ -1,9 +1,12 @@
 import EventEmitter from "common-micro-libs/src/jsutils/EventEmitter"
 
 //==============================================================
+const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
 const isArray           = Array.isArray;
 const objectDefineProp  = Object.defineProperty;
+const noop              = () => {};
+const isObservable      = arr => arr[OBSERVABLE_FLAG] === noop;
 const changeMethods     = [
     'pop',
     'push',
@@ -26,12 +29,15 @@ const changeMethods     = [
  *
  * @fires ObservableArray#change
  */
-let ObservableArray = /** @lends ObservableArray.prototype */{
-    init: function(initialValues){
-        if (isArray(initialValues)) {
-            this.push(...initialValues);
-        }
-    },
+let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype */{
+
+    /**
+     * The length of the array. Unlike the `length` property, this one is able
+     * to notify dependees if any are set to be track dependencies.
+     *
+     * @name len
+     * @type {Number}
+     */
 
     /**
      * The size of the collection. Same as `array#length`
@@ -64,41 +70,73 @@ let ObservableArray = /** @lends ObservableArray.prototype */{
 
         return updateResponse;
     }
-};
+});
 
-// Add all methods of Array.prototype to the collection
-Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
-    if (method === "constructor" || typeof ArrayPrototype[method] !== "function") {
+/**
+ * Converts an array instance methods to a wrapped version that can detect changes
+ * and also track dependee notifiers when data is accessed from the array
+ *
+ * @param {Array} arr
+ *
+ * @return {Array}
+ */
+function makeArrayObservable (arr) {
+    // If it looks like this array is already an being observered, then exit.
+    if (isObservable(arr)) {
         return;
     }
 
-    var doEvents = changeMethods.indexOf(method) !== -1;
+    objectDefineProp(arr, OBSERVABLE_FLAG, { get: () => noop });
 
-    ObservableArray[method] = function(){
-        var response = ArrayPrototype[method].apply(this, arguments);
-
-        // If the response is an array and its not this instance, then
-        // ensure it is an instance of this ObservableArray
-        if (isArray(response) && response !== this) {
-            response = this.getFactory().create(response);
+    // Add all methods of Array.prototype to the collection
+    Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
+        if (method === "constructor" || typeof ArrayPrototype[method] !== "function") {
+            return;
         }
 
-        // If Array method can manipulate the array, then emit event
-        if (doEvents) {
-            /**
-             * ObservableArray was changed. Event will provide the value returned
-             * by the Array method that made the change.
-             *
-             * @event ObservableArray#change
-             * @type {*}
-             *
-             */
-            this.emit("change", response);
-        }
+        const origMethod    = arr[method].bind(arr);
+        const doEvents      = changeMethods.indexOf(method) !== -1;
 
-        return response;
-    }
-});
+        // FIXME: would use of Object.setPrototypeOf or setting [].__proto__ be better? Need to investigate
+        objectDefineProp(arr, method, {
+            value: function(...args){
+                let response = origMethod(...args);
+
+                // If the response is an array and its not this instance, then
+                // ensure it is an instance of this ObservableArray
+                if (isArray(response) && response !== this && this.getFactory) {
+                    response = this.getFactory().create(response);
+                }
+
+                // If Array method can manipulate the array, then emit event
+                if (doEvents) {
+                    /**
+                     * ObservableArray was changed. Event will provide the value returned
+                     * by the Array method that made the change.
+                     *
+                     * @event ObservableArray#change
+                     * @type {*}
+                     *
+                     */
+                    EventEmitter.prototype.emit.call(this, "change", response);
+                }
+
+                return response;
+            },
+            writable:       true,
+            configurable:   true
+        });
+    });
+
+    objectDefineProp(arr, "len", {
+        get() {
+            return this.length;
+        },
+        configurable: true
+    });
+
+    return arr;
+}
 
 /**
  * Make an array instance observable in place
@@ -112,35 +150,21 @@ export function mixin(arr) {
         arr = [];
     }
 
-    const observableArrayPrototype = ObservableArray.prototype;
-
-    // If it looks like it is already an observable, then exit
-    if (arr.push === observableArrayPrototype.push) {
-        return arr;
-    }
-
-    // FIXME: would use of Object.setPrototypeOf or setting [].__proto__ be better? Need to investigate
-    for (let prop in observableArrayPrototype){
-        /* eslint-disable */
-        objectDefineProp(arr, prop, {
-            value:          observableArrayPrototype[prop],
-            writable:       true,
-            configurable:   true
-        });
-        /* eslint-enable */
-    }
-    return arr;
+    return ObservableArray.create(arr);
 }
-
-
-ObservableArray = EventEmitter.extend(ObservableArray);
 
 // Define the "create" factory method that will then redefine each
 // our proxyied methods of Array prototype into the array instance
 objectDefineProp(ObservableArray, "create", {
-    value: function(){
-        let instance        = [];
+    value: function(arrayInstance){
+        let instance        = arrayInstance || [];
         let thisPrototype   = this.prototype;
+
+        if (isObservable(instance)) {
+            return instance;
+        }
+
+        makeArrayObservable(instance);
 
         // Copy all methods in this prototype to the Array instance
         for (let prop in thisPrototype){
