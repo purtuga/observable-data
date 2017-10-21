@@ -4,32 +4,34 @@ import dataStore        from "common-micro-libs/src/jsutils/dataStore"
 import EventEmitter     from "common-micro-libs/src/jsutils/EventEmitter"
 import nextTick         from "common-micro-libs/src/jsutils/nextTick"
 
+import {
+    EV_STOP_DEPENDEE_NOTIFICATION,
+    IS_COMPUTED_NOTIFIER,
+    setDependencyTracker,
+    unsetDependencyTracker,
+    stopDependeeNotifications,
+    storeDependeeNotifiers,
+    queueDependeeNotifier,
+    bindCallTo,
+    arrayIndexOf,
+    arraySplice,
+    arrayForEach,
+    onInternalEvent
+} from "./common"
+
 //=======================================================
 const PRIVATE               = dataStore.create();
-const ARRAY_PROTOTYPE       = Array.prototype;
 const OBJECT                = Object;
 const OBJECT_PROTOTYPE      = OBJECT.prototype;
-const INTERNAL_EVENTS       = EventEmitter.create();
-const IS_COMPUTED_NOTIFIER  = "__od_cn__";
-
-const EV_STOP_DEPENDEE_NOTIFICATION = "1";
 
 // aliases
-const emitInternalEvent     = INTERNAL_EVENTS.emit.bind(INTERNAL_EVENTS);
-const onInternalEvent       = INTERNAL_EVENTS.on.bind(INTERNAL_EVENTS);
-const bindCallTo            = Function.call.bind.bind(Function.call);
 const objectCreate          = OBJECT.create;
 const objectDefineProperty  = OBJECT.defineProperty;
 const objectHasOwnProperty  = bindCallTo(OBJECT_PROTOTYPE.hasOwnProperty);
-const arrayIndexOf          = bindCallTo(ARRAY_PROTOTYPE.indexOf);
-const arrayForEach          = bindCallTo(ARRAY_PROTOTYPE.forEach);
-const arraySplice           = bindCallTo(ARRAY_PROTOTYPE.splice);
+
 const objectKeys            = Object.keys;
 const isPureObject          = o => o && OBJECT_PROTOTYPE.toString.call(o) === "[object Object]";
 const noopEventListener     = objectCreate({ off() {} });
-
-let dependeeList = [];
-
 
 /**
  * Adds the ability to observe `Object` property values for changes.
@@ -229,32 +231,6 @@ function getInstance(observableObj){
     return PRIVATE.get(observableObj);
 }
 
-
-const queueDependeeNotifier = (() => {
-    const dependeeNotifiers = [];
-    const execNotifiers     = () => arrayForEach(arraySplice(dependeeNotifiers, 0), notifierCb => notifierCb());
-
-    return notifierCb => {
-        if (!notifierCb || arrayIndexOf(dependeeNotifiers, notifierCb) !== -1) {
-            return;
-        }
-
-        // Computed property notifiers are lightweight, so execute
-        // these now and don't queue them.
-        if (notifierCb[IS_COMPUTED_NOTIFIER]) {
-            notifierCb();
-            return;
-        }
-
-        const callNextTick = !dependeeNotifiers.length;
-        dependeeNotifiers.push(notifierCb);
-
-        if (callNextTick) {
-            nextTick(execNotifiers);
-        }
-    };
-})();
-
 /**
  * A property setup
  *
@@ -382,16 +358,7 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter){
             // Getter will either delegate to the prior getter(),
             // or return the value that was originally assigned to the property
             get: function(){
-                // If there is a dependee listening for changes right now, then
-                // store it for future notification
-                if (dependeeList && dependeeList.length) {
-                    arrayForEach(dependeeList, dependeeCallback => {
-                        if (arrayIndexOf(dependees, dependeeCallback) === -1) {
-                            dependees.push(dependeeCallback);
-                        }
-                    });
-                }
-
+                storeDependeeNotifiers(dependees);
                 return valueGetter ? valueGetter() : propSetup.newVal;
             },
 
@@ -505,45 +472,6 @@ export function createComputedProp(observable, propName, valueGenerator) {
         return Object.create({ destroy });
     }
 }
-
-/**
- * Allows for adding a Dependee notifier to the global list of dependency trackers.
- *
- * @param {Function} dependeeNotifier
- */
-export function setDependencyTracker(dependeeNotifier) {
-    if (dependeeNotifier && arrayIndexOf(dependeeList, dependeeNotifier) === -1) {
-        dependeeList.push(dependeeNotifier);
-    }
-}
-
-/**
- * Removes a Dependee notifier from the global list of dependency trackers.
- *
- * @param {Function} dependeeNotifier
- */
-export function unsetDependencyTracker(dependeeNotifier) {
-    if (!dependeeNotifier) {
-        return;
-    }
-    const index = arrayIndexOf(dependeeList, dependeeNotifier);
-    if (index !== -1) {
-        arraySplice(dependeeList, index, 1);
-    }
-}
-
-/**
- * Removes a Dependee notifier from any stored ObservableProperty list of dependees, thus
- * stopping all notifications to that depenedee.
- *
- * @param {Function} dependeeNotifier
- */
-export function stopDependeeNotifications(dependeeNotifier) {
-    if (dependeeNotifier) {
-        emitInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, dependeeNotifier);
-    }
-}
-
 
 /**
  * Assign the properties of one (or more) objects to the observable and
@@ -714,3 +642,8 @@ ObservableObject.defaults = {
 };
 
 export default ObservableObject;
+export {
+    setDependencyTracker,
+    unsetDependencyTracker,
+    stopDependeeNotifications
+};

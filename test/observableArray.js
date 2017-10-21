@@ -2,7 +2,11 @@ require             = require('@std/esm')(module, { cjs: true, esm: 'js' });
 const test          = require("tape");
 const {
     default:ObservableArray,
-    mixin }    = require("../src/ObservableArray");
+    mixin,
+    setDependencyTracker,
+    unsetDependencyTracker,
+    stopDependeeNotifications } = require("../src/ObservableArray");
+const delay                     = ms => new Promise(resolve => setTimeout(resolve, ms || 2));
 
 test("ObservableArray", t => {
     const getCallback = () => {
@@ -125,6 +129,51 @@ test("ObservableArray", t => {
         st.equal(typeof arr.emit, "function", "has emit() method");
 
         st.end();
+    });
+
+    t.test("Dependee notifications", st => {
+        st.plan(5);
+        const dependeeNotifier = () => { dependeeNotifier.count = dependeeNotifier.count || 0; dependeeNotifier.count++};
+        const data = ObservableArray.create(["1", "2"]);
+
+        setDependencyTracker(dependeeNotifier);
+        data.len;
+        unsetDependencyTracker(dependeeNotifier);
+
+        data.push("3");
+        delay()
+            .then(() => {
+                st.equal(dependeeNotifier.count, 1, "calls dependeeNotifier with .push()");
+
+                data.pop();
+                return delay();
+            })
+            .then(() => {
+                st.equal(dependeeNotifier.count, 2, "calls dependeeNotifier with .pop()");
+
+                data.sort();
+                return delay();
+            })
+            .then(() => {
+                st.equal(dependeeNotifier.count, 3, "calls dependeeNotifier with .sort()");
+
+                // 3 updates calls dependee only once
+                data.item(0, "one");
+                data.push("one", "two");
+                data.pop("three", "four");
+                return delay();
+            })
+            .then(() => {
+                st.equal(dependeeNotifier.count, 4, "calls dependeeNotifier with .item()");
+
+                stopDependeeNotifications(dependeeNotifier);
+                data.push("another");
+                return delay();
+            })
+            .then(() => {
+                st.equal(dependeeNotifier.count, 4, "stops calling dependeeNotifier");
+            })
+            .catch(console.error.bind(console));
     });
 
     t.end();

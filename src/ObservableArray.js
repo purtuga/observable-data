@@ -1,6 +1,21 @@
 import EventEmitter from "common-micro-libs/src/jsutils/EventEmitter"
+import dataStore    from "common-micro-libs/src/jsutils/dataStore"
+
+import {
+    EV_STOP_DEPENDEE_NOTIFICATION,
+    onInternalEvent,
+    storeDependeeNotifiers,
+    setDependencyTracker,
+    unsetDependencyTracker,
+    stopDependeeNotifications,
+    queueDependeeNotifier,
+    arrayForEach,
+    arraySplice,
+    arrayIndexOf
+} from "./common"
 
 //==============================================================
+const PRIVATE           = dataStore.create();
 const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
 const isArray           = Array.isArray;
@@ -39,12 +54,10 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
      * @type {Number}
      */
 
-    /**
-     * The size of the collection. Same as `array#length`
-     *
-     * @type Number
-     */
+    // For backwards compatible with initial version
+    // use `len` property instead
     size: function(){
+        storeDependeeNotifiers(getInstance(this).dependees);
         return this.length;
     },
 
@@ -59,6 +72,8 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
         let args    = ArrayPrototype.slice.call(arguments, 0);
         let _array  = this;
 
+        storeDependeeNotifiers(getInstance(this).dependees);
+
         // GET mode..
         if (args.length === 1) {
             return _array[index];
@@ -66,11 +81,49 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
 
         // Update mode... Emits event
         let updateResponse = _array[index] = args[1];
+        notifyDependees(_array);
         _array.emit("change", updateResponse);
 
         return updateResponse;
     }
 });
+
+function getInstance (obArray) {
+    if (!PRIVATE.has(obArray)) {
+        const dependees = [];
+        // let isQueued = false;
+        const inst = {
+            dependees: dependees,
+
+            notify() {
+                // Queue up calling all dependee notifiers
+                arrayForEach(dependees, cb => queueDependeeNotifier(cb));
+
+                // if (isQueued) {
+                //     return;
+                // }
+            }
+        };
+
+        PRIVATE.set(obArray, inst);
+
+        const ev1 = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, cb => {
+            const cbIndex = arrayIndexOf(dependees, cb);
+            if (cbIndex !== -1) {
+                arraySplice(dependees, cbIndex, 1);
+            }
+        });
+
+        if (obArray.onDestroy) {
+            obArray.onDestroy(() => {
+                dependees.splice(0);
+                ev1.off();
+                PRIVATE.delete(obArray);
+            });
+        }
+    }
+    return PRIVATE.get(obArray);
+}
 
 /**
  * Converts an array instance methods to a wrapped version that can detect changes
@@ -100,6 +153,8 @@ function makeArrayObservable (arr) {
         // FIXME: would use of Object.setPrototypeOf or setting [].__proto__ be better? Need to investigate
         objectDefineProp(arr, method, {
             value: function(...args){
+                storeDependeeNotifiers(getInstance(this).dependees);
+
                 let response = origMethod(...args);
 
                 // If the response is an array and its not this instance, then
@@ -110,6 +165,8 @@ function makeArrayObservable (arr) {
 
                 // If Array method can manipulate the array, then emit event
                 if (doEvents) {
+                    notifyDependees(this);
+
                     /**
                      * ObservableArray was changed. Event will provide the value returned
                      * by the Array method that made the change.
@@ -130,12 +187,17 @@ function makeArrayObservable (arr) {
 
     objectDefineProp(arr, "len", {
         get() {
+            storeDependeeNotifiers(getInstance(this).dependees);
             return this.length;
         },
         configurable: true
     });
 
     return arr;
+}
+
+function notifyDependees(arrObj) {
+    getInstance(arrObj).notify();
 }
 
 /**
@@ -186,3 +248,9 @@ objectDefineProp(ObservableArray, "create", {
 });
 
 export default ObservableArray;
+
+export {
+    setDependencyTracker,
+    unsetDependencyTracker,
+    stopDependeeNotifications
+};
