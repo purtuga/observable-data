@@ -7,15 +7,17 @@ export const INTERNAL_EVENTS                = EventEmitter.create();
 export const EV_STOP_DEPENDEE_NOTIFICATION  = "1";
 export const ARRAY_PROTOTYPE                = Array.prototype;
 export const IS_COMPUTED_NOTIFIER           = "__od_cn__";
+export const OBJECT_PROTOTYPE               = Object.prototype;
 
 export const bindCallTo         = Function.call.bind.bind(Function.call);
 export const dependeeList       = [];
 export const onInternalEvent    = INTERNAL_EVENTS.on.bind(INTERNAL_EVENTS);
 export const emitInternalEvent  = INTERNAL_EVENTS.emit.bind(INTERNAL_EVENTS);
+export const isArray            = Array.isArray;
 export const arrayIndexOf       = bindCallTo(ARRAY_PROTOTYPE.indexOf);
 export const arraySplice        = bindCallTo(ARRAY_PROTOTYPE.splice);
 export const arrayForEach       = bindCallTo(ARRAY_PROTOTYPE.forEach);
-
+export const isPureObject       = o => o && OBJECT_PROTOTYPE.toString.call(o) === "[object Object]";
 
 /**
  * Allows for adding a Dependee notifier to the global list of dependency trackers.

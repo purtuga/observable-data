@@ -10,6 +10,7 @@ import {
     unsetDependencyTracker,
     stopDependeeNotifications,
     queueDependeeNotifier,
+    isArray,
     arrayForEach,
     arraySplice,
     arrayIndexOf
@@ -19,7 +20,6 @@ import {
 const PRIVATE           = dataStore.create();
 const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
-const isArray           = Array.isArray;
 const objectDefineProp  = Object.defineProperty;
 const noop              = () => {};
 const isObservable      = arr => arr[OBSERVABLE_FLAG] === noop;

@@ -7,6 +7,7 @@ import nextTick         from "common-micro-libs/src/jsutils/nextTick"
 import {
     EV_STOP_DEPENDEE_NOTIFICATION,
     IS_COMPUTED_NOTIFIER,
+    OBJECT_PROTOTYPE,
     setDependencyTracker,
     unsetDependencyTracker,
     stopDependeeNotifications,
@@ -16,13 +17,14 @@ import {
     arrayIndexOf,
     arraySplice,
     arrayForEach,
-    onInternalEvent
+    onInternalEvent,
+    isPureObject
 } from "./common"
 
 //=======================================================
 const PRIVATE               = dataStore.create();
 const OBJECT                = Object;
-const OBJECT_PROTOTYPE      = OBJECT.prototype;
+
 
 // aliases
 const objectCreate          = OBJECT.create;
@@ -30,7 +32,6 @@ const objectDefineProperty  = OBJECT.defineProperty;
 const objectHasOwnProperty  = bindCallTo(OBJECT_PROTOTYPE.hasOwnProperty);
 
 const objectKeys            = Object.keys;
-const isPureObject          = o => o && OBJECT_PROTOTYPE.toString.call(o) === "[object Object]";
 const noopEventListener     = objectCreate({ off() {} });
 
 /**
@@ -507,8 +508,12 @@ export function observableAssign(observable, ...objs) {
  * @param {Boolean} [deep=false]
  *  If set to `true` then the object, or the value the given `prop` (if defined)
  *  will be "walked" and any object found made an observable as well.
+ *
+ * @param {Function} [onEach]
+ *  A callback function to be called as each property is "walked". The property value
+ *  is provided on input to the callback
  */
-export function makeObservable(observable, propName, deep) {
+export function makeObservable(observable, propName, deep, onEach) {
     if (observable) {
         if (propName) {
             makePropWatchable(observable, propName);
@@ -521,6 +526,10 @@ export function makeObservable(observable, propName, deep) {
             arrayForEach(objectKeys(observable), key => {
                 if (observable[key] && isPureObject(observable[key])) {
                     makeObservable(observable[key], null, deep);
+                }
+
+                if (onEach) {
+                    onEach(observable[key]);
                 }
             });
         }
