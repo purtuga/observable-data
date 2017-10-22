@@ -1,5 +1,6 @@
 import EventEmitter from "common-micro-libs/src/jsutils/EventEmitter"
 import dataStore    from "common-micro-libs/src/jsutils/dataStore"
+import nextTick     from "common-micro-libs/src/jsutils/nextTick"
 
 import {
     EV_STOP_DEPENDEE_NOTIFICATION,
@@ -82,7 +83,6 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
         // Update mode... Emits event
         let updateResponse = _array[index] = args[1];
         notifyDependees(_array);
-        _array.emit("change", updateResponse);
 
         return updateResponse;
     }
@@ -91,7 +91,7 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
 function getInstance (obArray) {
     if (!PRIVATE.has(obArray)) {
         const dependees = [];
-        // let isQueued = false;
+        let isQueued = false;
         const inst = {
             dependees: dependees,
 
@@ -99,9 +99,21 @@ function getInstance (obArray) {
                 // Queue up calling all dependee notifiers
                 arrayForEach(dependees, cb => queueDependeeNotifier(cb));
 
-                // if (isQueued) {
-                //     return;
-                // }
+                if (isQueued) {
+                    return;
+                }
+
+                /**
+                 * ObservableArray was changed. Event will provide the value returned
+                 * by the Array method that made the change.
+                 *
+                 * @event ObservableArray#change
+                 * @type {*}
+                 */
+                nextTick(() => {
+                    EventEmitter.prototype.emit.call(obArray, "change");
+                    isQueued = false;
+                });
             }
         };
 
@@ -166,16 +178,6 @@ function makeArrayObservable (arr) {
                 // If Array method can manipulate the array, then emit event
                 if (doEvents) {
                     notifyDependees(this);
-
-                    /**
-                     * ObservableArray was changed. Event will provide the value returned
-                     * by the Array method that made the change.
-                     *
-                     * @event ObservableArray#change
-                     * @type {*}
-                     *
-                     */
-                    EventEmitter.prototype.emit.call(this, "change", response);
                 }
 
                 return response;

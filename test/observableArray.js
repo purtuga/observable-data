@@ -71,35 +71,39 @@ test("ObservableArray", t => {
 
     // EVENTS
     t.test("Emits events", st => {
+        st.plan(7)
+
         let data    = ObservableArray.create(["one", "two", "tree", "four", "five", "six", "seven"]);
         let cb      = getCallback();
         let count   = 0;
 
         data.on("change", cb);
 
-        // Remove mutating methods
-        ['pop', 'shift',].forEach((mutatingMethod, index) => {
-            data[mutatingMethod]();
-            count++;
-            st.equal(cb.callCount, count, `triggers change on ${ mutatingMethod }()`);
+        // Test each mutating method
+        [
+            'pop',
+            'push',
+            'shift',
+            'splice',
+            'unshift',
+            'sort',
+            'reverse'
+        ].reduce((whenLastTestDone, mutatingMethod) => {
+            return whenLastTestDone.then(() => {
+                data[mutatingMethod]();
+                count++;
+                const nowCount = count;
 
-        });
+                return delay().then(() => {
+                    st.equal(cb.callCount, nowCount, `triggers change on ${ mutatingMethod }()`);
+                });
+            });
+        }, Promise.resolve());
 
-        // Add mutating methods
-        ['push', 'unshift'].forEach((mutatingMethod, index) => {
-            data[mutatingMethod](`test ${ index }`);
-            count++
-            st.equal(cb.callCount, count, `triggers change on ${ mutatingMethod }()`);
-        });
 
-        data.splice(0,0,"splice item");
-        count++;
-        st.equal(cb.callCount, count, "triggers change on splice()");
-
-        st.end();
     });
 
-    t.test("New collection are returned", st => {
+    t.test("methods return collection instances", st => {
         const data = ObservableArray.create([1, 2, 3, 4, 5, 6, 7, 8, 9]);
         let resp;
 
