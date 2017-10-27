@@ -78,6 +78,21 @@ users.push("Paul", "Jack"); // Console: users changed. Length: 2
 changeEvListener.off();
 ```
 
+### Array Methods that Return Arrays
+
+Array methods that return arrays as the result of calling such methods will include a method on the result called `toObservable` which allow for quick conversion of array to observable. 
+
+Example:
+
+```javascript
+const arr = ObservableArray.create([1, 2, 3]);
+
+const filtered = arr.filter(n => n > 2); // filtered === [3]
+filtered.toObservable(); // makes filtered observable as well
+
+```
+
+
 ## License
 
 MIT License

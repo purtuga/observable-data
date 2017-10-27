@@ -110,12 +110,16 @@ test("ObservableArray", t => {
         resp = data.filter(item => item < 3);
         st.ok(Array.isArray(resp), ".filter() return array");
         st.equal(resp.length, 2, ".filter()'d array has 2 element");
-        st.equal(typeof resp.on, "function", ".filter() returned ObservableArray");
+        st.equal(typeof resp.on, "undefined", ".filter() returns non-ObservableArray");
+        st.equal(typeof resp.toObservable, "function", ".filter() returns array with toObservable() method");
 
-        resp.destroy();
+        // resp.destroy();
         resp = data.concat([10, 11]);
-        st.equal(typeof resp.on, "function", ".concat() returned ObservableArray");
         st.equal(resp.length, 11, ".concat() array has 11 items");
+        st.equal(typeof resp.on, "undefined", ".concat() returned non-observable");
+        let resp2 = resp.toObservable();
+        st.equal(typeof resp.on, "function", "toObservable() converts array to observable");
+        st.equal(resp, resp2, "toObservable() does in-place convert to observable");
 
         resp.destroy();
         resp = data.reverse();

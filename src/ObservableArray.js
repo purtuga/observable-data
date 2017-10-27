@@ -171,10 +171,18 @@ function makeArrayObservable (arr) {
 
                 let response = origMethod(...args);
 
-                // If the response is an array and its not this instance, then
-                // ensure it is an instance of this ObservableArray
-                if (isArray(response) && response !== this && this.getFactory) {
-                    response = this.getFactory().create(response);
+                // If the response is an array, then add method to it that allows it
+                // to be converted to an observable
+                if (isArray(response) && response !== this) {
+                    objectDefineProp(response, "toObservable", {
+                        value: () => {
+                            if (this.getFactory) {
+                                return this.getFactory().create(response);
+                            }
+
+                            return mixin(response);
+                        }
+                    });
                 }
 
                 // If Array method can manipulate the array, then emit event
