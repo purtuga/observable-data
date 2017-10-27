@@ -153,18 +153,20 @@ function makeArrayObservable (arr) {
 
     objectDefineProp(arr, OBSERVABLE_FLAG, { get: () => noop });
 
+    // Create new Array instance prototype
+    const newArrProto = Object.create(arr.__proto__); // eslint-disable-line
+
     // Add all methods of Array.prototype to the collection
     Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
         if (method === "constructor" || typeof ArrayPrototype[method] !== "function") {
             return;
         }
 
-        const origMethod    = arr[method].bind(arr);
+        const origMethod    = newArrProto[method].bind(arr);
         const doEvents      = changeMethods.indexOf(method) !== -1;
 
-        // FIXME: would use of Object.setPrototypeOf or setting [].__proto__ be better? Need to investigate
-        objectDefineProp(arr, method, {
-            value: function(...args){
+        objectDefineProp(newArrProto, method, {
+            value: function observable(...args){
                 storeDependeeNotifiers(getInstance(this).dependees);
 
                 let response = origMethod(...args);
@@ -187,13 +189,25 @@ function makeArrayObservable (arr) {
         });
     });
 
-    objectDefineProp(arr, "len", {
+    // Add `len` property, which is shorthand for `length` but with added
+    // ability to observe for array changes when called and trigger notifiers
+    // when changed.
+    objectDefineProp(newArrProto, "len", {
         get() {
             storeDependeeNotifiers(getInstance(this).dependees);
             return this.length;
         },
+
+        set(n) {
+            const response = this.length = n;
+            notifyDependees(this);
+            return response;
+        },
+
         configurable: true
     });
+
+    arr.__proto__ = newArrProto; // eslint-disable-line
 
     return arr;
 }

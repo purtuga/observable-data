@@ -1,9 +1,9 @@
-import ObservableArray, { mixin }           from "./src/ObservableArray"
-import ObservableObject, { makeObservable } from "./src/ObservableObject"
+import ObservableArray, { mixin }           from "./ObservableArray"
+import ObservableObject, { makeObservable } from "./ObservableObject"
 import {
     isPureObject,
     arrayForEach,
-    isArray }  from "./src/common"
+    isArray }  from "./common"
 
 //==================================================================
 

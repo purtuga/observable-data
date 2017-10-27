@@ -1,6 +1,6 @@
 require             = require('@std/esm')(module, { cjs: true, esm: 'js' });
 const test          = require("tape");
-const observeAll    = require("../index").observeAll;
+const observeAll    = require("../src/index").observeAll;
 const { createComputedProp } = require("../src/ObservableObject");
 
 const getCallback = () => {
