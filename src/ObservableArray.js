@@ -153,67 +153,80 @@ function makeArrayObservable (arr) {
 
     objectDefineProp(arr, OBSERVABLE_FLAG, { get: () => noop });
 
-    // Create new Array instance prototype
-    const newArrProto = Object.create(arr.__proto__); // eslint-disable-line
+    const arrCurrentProto = arr.__proto__; // eslint-disable-line
+    let newArrProto;
 
-    // Add all methods of Array.prototype to the collection
-    Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
-        if (method === "constructor" || typeof ArrayPrototype[method] !== "function") {
-            return;
-        }
+    // If we already have a wrapped prototype for this array's
+    // current prototype, then just use that
+    if (PRIVATE.has(arrCurrentProto)) {
+        newArrProto = PRIVATE.get(arrCurrentProto); // eslint-disable-line
+    }
+    // ELSE: create a wrapped prototype for this array's prototype
+    else {
+        // Create new Array instance prototype
+        newArrProto = Object.create(arrCurrentProto);
 
-        const origMethod    = newArrProto[method].bind(arr);
-        const doEvents      = changeMethods.indexOf(method) !== -1;
+        // Add all methods of Array.prototype to the collection
+        Object.getOwnPropertyNames(ArrayPrototype).forEach(function(method){
+            if (method === "constructor" || typeof ArrayPrototype[method] !== "function") {
+                return;
+            }
 
-        objectDefineProp(newArrProto, method, {
-            value: function observable(...args){
-                storeDependeeNotifiers(getInstance(this).dependees);
+            const origMethod    = newArrProto[method].bind(arr);
+            const doEvents      = changeMethods.indexOf(method) !== -1;
 
-                let response = origMethod(...args);
+            objectDefineProp(newArrProto, method, {
+                value: function observable(...args){
+                    storeDependeeNotifiers(getInstance(this).dependees);
 
-                // If the response is an array, then add method to it that allows it
-                // to be converted to an observable
-                if (isArray(response) && response !== this) {
-                    objectDefineProp(response, "toObservable", {
-                        value: () => {
-                            if (this.getFactory) {
-                                return this.getFactory().create(response);
+                    let response = origMethod(...args);
+
+                    // If the response is an array, then add method to it that allows it
+                    // to be converted to an observable
+                    if (isArray(response) && response !== this) {
+                        objectDefineProp(response, "toObservable", {
+                            value: () => {
+                                if (this.getFactory) {
+                                    return this.getFactory().create(response);
+                                }
+
+                                return mixin(response);
                             }
+                        });
+                    }
 
-                            return mixin(response);
-                        }
-                    });
-                }
+                    // If Array method can manipulate the array, then emit event
+                    if (doEvents) {
+                        notifyDependees(this);
+                    }
 
-                // If Array method can manipulate the array, then emit event
-                if (doEvents) {
-                    notifyDependees(this);
-                }
+                    return response;
+                },
+                writable:       true,
+                configurable:   true
+            });
+        });
 
+        // Add `len` property, which is shorthand for `length` but with added
+        // ability to observe for array changes when called and trigger notifiers
+        // when changed.
+        objectDefineProp(newArrProto, "len", {
+            get() {
+                storeDependeeNotifiers(getInstance(this).dependees);
+                return this.length;
+            },
+
+            set(n) {
+                const response = this.length = n;
+                notifyDependees(this);
                 return response;
             },
-            writable:       true,
-            configurable:   true
+
+            configurable: true
         });
-    });
 
-    // Add `len` property, which is shorthand for `length` but with added
-    // ability to observe for array changes when called and trigger notifiers
-    // when changed.
-    objectDefineProp(newArrProto, "len", {
-        get() {
-            storeDependeeNotifiers(getInstance(this).dependees);
-            return this.length;
-        },
-
-        set(n) {
-            const response = this.length = n;
-            notifyDependees(this);
-            return response;
-        },
-
-        configurable: true
-    });
+        PRIVATE.set(arrCurrentProto, newArrProto);
+    }
 
     arr.__proto__ = newArrProto; // eslint-disable-line
 
@@ -243,19 +256,20 @@ export function mixin(arr) {
 // our proxyied methods of Array prototype into the array instance
 objectDefineProp(ObservableArray, "create", {
     value: function(arrayInstance){
-        let instance        = arrayInstance || [];
+        let observable      = arrayInstance || [];
         let thisPrototype   = this.prototype;
 
-        if (isObservable(instance)) {
-            return instance;
+        if (isObservable(observable)) {
+            return observable;
         }
 
-        makeArrayObservable(instance);
+        makeArrayObservable(observable);
+        const observableProto = observable.__proto__; // eslint-disable-line
 
         // Copy all methods in this prototype to the Array instance
         for (let prop in thisPrototype){
             /* eslint-disable */
-            objectDefineProp(instance, prop, {
+            objectDefineProp(observableProto, prop, {
                 value:          thisPrototype[prop],
                 writable:       true,
                 configurable:   true
@@ -263,11 +277,11 @@ objectDefineProp(ObservableArray, "create", {
             /* eslint-enable */
         }
 
-        if (instance.init) {
-            instance.init.apply(instance, arguments);
+        if (observable.init) {
+            observable.init.apply(observable, arguments);
         }
 
-        return instance;
+        return observable;
     }
 });
 
