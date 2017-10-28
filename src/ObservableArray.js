@@ -172,14 +172,14 @@ function makeArrayObservable (arr) {
                 return;
             }
 
-            const origMethod    = newArrProto[method].bind(arr);
+            const origMethod    = newArrProto[method];
             const doEvents      = changeMethods.indexOf(method) !== -1;
 
             objectDefineProp(newArrProto, method, {
                 value: function observable(...args){
                     storeDependeeNotifiers(getInstance(this).dependees);
 
-                    let response = origMethod(...args);
+                    let response = origMethod.call(this, ...args);
 
                     // If the response is an array, then add method to it that allows it
                     // to be converted to an observable
