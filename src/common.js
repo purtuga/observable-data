@@ -1,8 +1,9 @@
 import EventEmitter     from "common-micro-libs/src/jsutils/EventEmitter"
 import nextTick         from "common-micro-libs/src/jsutils/nextTick"
+import dataStore        from "common-micro-libs/src/jsutils/dataStore"
 
 //=======================================================================
-
+export const PRIVATE                        = dataStore.create();
 export const INTERNAL_EVENTS                = EventEmitter.create();
 export const EV_STOP_DEPENDEE_NOTIFICATION  = "1";
 export const ARRAY_PROTOTYPE                = Array.prototype;
@@ -87,9 +88,8 @@ export const queueDependeeNotifier = (() => {
 export function storeDependeeNotifiers (store) {
     if (store && dependeeList.length) {
         arrayForEach(dependeeList, dependeeCallback => {
-            if (arrayIndexOf(store, dependeeCallback) === -1) {
-                store.push(dependeeCallback);
-            }
+            store.add(dependeeCallback);
         });
+
     }
 }

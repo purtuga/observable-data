@@ -1,10 +1,11 @@
 import Compose          from "common-micro-libs/src/jsutils/Compose"
 import objectExtend     from "common-micro-libs/src/jsutils/objectExtend"
-import dataStore        from "common-micro-libs/src/jsutils/dataStore"
 import EventEmitter     from "common-micro-libs/src/jsutils/EventEmitter"
 import nextTick         from "common-micro-libs/src/jsutils/nextTick"
+import Set              from "common-micro-libs/src/jsutils/es6-Set"
 
 import {
+    PRIVATE,
     EV_STOP_DEPENDEE_NOTIFICATION,
     IS_COMPUTED_NOTIFIER,
     OBJECT_PROTOTYPE,
@@ -14,7 +15,6 @@ import {
     storeDependeeNotifiers,
     queueDependeeNotifier,
     bindCallTo,
-    arrayIndexOf,
     arraySplice,
     arrayForEach,
     onInternalEvent,
@@ -22,7 +22,6 @@ import {
 } from "./common"
 
 //=======================================================
-const PRIVATE               = dataStore.create();
 const OBJECT                = Object;
 
 
@@ -241,19 +240,35 @@ function getInstance(observableObj){
  */
 const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototype */{
     init(observable, propName) {
-        const dependees = this.dependees = [];
+        const dependees = this.dependees = new Set();
+        const removeDependee = cb => {
+            dependees.delete(cb);
+
+            // let index = dependees.length;
+            //
+            // if (index === 0) {
+            //     return;
+            // }
+            //
+            // let cbIndex = -1;
+            // while (cbIndex === -1 && --index !== -1) {
+            //     if (dependees[index] && dependees[index] === cb) {
+            //         cbIndex = index;
+            //         break;
+            //     }
+            // }
+            // if (cbIndex !== -1) {
+            //     arraySplice(dependees, cbIndex, 1);
+            // }
+        };
+
         this.propName = propName;
         this._obj = observable;
 
-        const removeDependeeEvListener = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, cb => {
-            const cbIndex = arrayIndexOf(dependees, cb);
-            if (cbIndex !== -1) {
-                arraySplice(dependees, cbIndex, 1);
-            }
-        });
+        let removeDependeeEvListener = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, removeDependee);
 
         this.onDestroy(() => {
-            arraySplice(this.dependees, 0);
+            dependees.clear();
             removeDependeeEvListener.off();
             this._obj = null;
         })
@@ -281,7 +296,9 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
         const propSetup = this;
 
         // Queue up calling all dependee notifiers
-        arrayForEach(this.dependees, cb => queueDependeeNotifier(cb));
+        for (let cb of this.dependees) {
+            queueDependeeNotifier(cb);
+        }
 
         // If emitting of events for this property was already queued, exit
         if (propSetup.queued) {

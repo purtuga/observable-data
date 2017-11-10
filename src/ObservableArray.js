@@ -1,8 +1,9 @@
 import EventEmitter from "common-micro-libs/src/jsutils/EventEmitter"
-import dataStore    from "common-micro-libs/src/jsutils/dataStore"
 import nextTick     from "common-micro-libs/src/jsutils/nextTick"
+import Set          from "common-micro-libs/src/jsutils/es6-Set"
 
 import {
+    PRIVATE,
     EV_STOP_DEPENDEE_NOTIFICATION,
     onInternalEvent,
     storeDependeeNotifiers,
@@ -17,7 +18,6 @@ import {
 } from "./common"
 
 //==============================================================
-const PRIVATE           = dataStore.create();
 const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
 const objectDefineProp  = Object.defineProperty;
@@ -90,14 +90,16 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
 
 function getInstance (obArray) {
     if (!PRIVATE.has(obArray)) {
-        const dependees = [];
+        const dependees = new Set();
         let isQueued = false;
         const inst = {
             dependees: dependees,
 
             notify() {
                 // Queue up calling all dependee notifiers
-                arrayForEach(dependees, cb => queueDependeeNotifier(cb));
+                for (let cb of dependees) {
+                    queueDependeeNotifier(cb);
+                }
 
                 if (isQueued) {
                     return;
@@ -120,15 +122,12 @@ function getInstance (obArray) {
         PRIVATE.set(obArray, inst);
 
         const ev1 = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, cb => {
-            const cbIndex = arrayIndexOf(dependees, cb);
-            if (cbIndex !== -1) {
-                arraySplice(dependees, cbIndex, 1);
-            }
+            dependees.delete(cb);
         });
 
         if (obArray.onDestroy) {
             obArray.onDestroy(() => {
-                dependees.splice(0);
+                dependees.clear();
                 ev1.off();
                 PRIVATE.delete(obArray);
             });
