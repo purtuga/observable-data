@@ -10,10 +10,12 @@ const delay                     = ms => new Promise(resolve => setTimeout(resolv
 
 test("ObservableArray", t => {
     const getCallback = () => {
-        const cb = () => {
+        const cb = (...args) => {
             cb.callCount++;
+            cb.args = args;
         };
         cb.callCount = 0;
+        cb.args = [];
         return cb;
     };
 
@@ -71,7 +73,7 @@ test("ObservableArray", t => {
 
     // EVENTS
     t.test("Emits events", st => {
-        st.plan(7)
+        st.plan(14);
 
         let data    = ObservableArray.create(["one", "two", "tree", "four", "five", "six", "seven"]);
         let cb      = getCallback();
@@ -98,9 +100,34 @@ test("ObservableArray", t => {
                     st.equal(cb.callCount, nowCount, `triggers change on ${ mutatingMethod }()`);
                 });
             });
-        }, Promise.resolve());
+        }, Promise.resolve())
+        .then(() => {
+            let obj = {};
+            cb.callCount = 0;
+            data.push(1);
+            data.push(2);
+            data.push(3);
+            data.unshift(1);
+            data.pop();
+            data.shift();
+            data.splice(0, 1, 100, 101);
+            data.push(obj);
+            data.item(data.length - 1, obj);
 
+            return delay().then(() => {
+                st.equal(cb.callCount, 1, "triggers change only once");
 
+                let arrChanges = cb.args[0];
+                st.equal(Array.isArray(arrChanges.removed), true, "event object has removed property");
+                st.equal(Array.isArray(arrChanges.added), true, "event object has added property");
+                st.equal(Array.isArray(arrChanges.updated), true, "event object has updated property");
+
+                st.equal(arrChanges.added.length, 7, " items removed");
+                st.equal(arrChanges.updated.length, 1, "one item updated");
+                st.equal(arrChanges.removed.length, 3, "three items removed");
+            });
+        })
+        .catch(console.log.bind(console));
     });
 
     t.test("methods return collection instances", st => {

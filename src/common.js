@@ -1,6 +1,7 @@
 import EventEmitter     from "common-micro-libs/src/jsutils/EventEmitter"
 import nextTick         from "common-micro-libs/src/jsutils/nextTick"
 import dataStore        from "common-micro-libs/src/jsutils/dataStore"
+import Set              from "common-micro-libs/src/jsutils/es6-Set"
 
 //=======================================================================
 export const PRIVATE                        = dataStore.create();
@@ -11,7 +12,7 @@ export const IS_COMPUTED_NOTIFIER           = "__od_cn__";
 export const OBJECT_PROTOTYPE               = Object.prototype;
 
 export const bindCallTo         = Function.call.bind.bind(Function.call);
-export const dependeeList       = [];
+export const dependeeList       = new Set();
 export const onInternalEvent    = INTERNAL_EVENTS.on.bind(INTERNAL_EVENTS);
 export const emitInternalEvent  = INTERNAL_EVENTS.emit.bind(INTERNAL_EVENTS);
 export const isArray            = Array.isArray;
@@ -26,8 +27,8 @@ export const isPureObject       = o => o && OBJECT_PROTOTYPE.toString.call(o) ==
  * @param {Function} dependeeNotifier
  */
 export function setDependencyTracker(dependeeNotifier) {
-    if (dependeeNotifier && arrayIndexOf(dependeeList, dependeeNotifier) === -1) {
-        dependeeList.push(dependeeNotifier);
+    if (dependeeNotifier) {
+        dependeeList.add(dependeeNotifier);
     }
 }
 
@@ -40,10 +41,7 @@ export function unsetDependencyTracker(dependeeNotifier) {
     if (!dependeeNotifier) {
         return;
     }
-    const index = arrayIndexOf(dependeeList, dependeeNotifier);
-    if (index !== -1) {
-        arraySplice(dependeeList, index, 1);
-    }
+    dependeeList.delete(dependeeNotifier);
 }
 
 /**
@@ -60,14 +58,15 @@ export function stopDependeeNotifications(dependeeNotifier) {
 
 
 export const queueDependeeNotifier = (() => {
-    const dependeeNotifiers = [];
-    const execNotifiers     = () => arrayForEach(arraySplice(dependeeNotifiers, 0), notifierCb => notifierCb());
+    const dependeeNotifiers = new Set();
+    const execNotifiers     = () => {
+        for (let notifierCb of dependeeNotifiers) {
+            notifierCb();
+        }
+        dependeeNotifiers.clear();
+    };
 
     return notifierCb => {
-        if (!notifierCb || arrayIndexOf(dependeeNotifiers, notifierCb) !== -1) {
-            return;
-        }
-
         // Computed property notifiers are lightweight, so execute
         // these now and don't queue them.
         if (notifierCb[IS_COMPUTED_NOTIFIER]) {
@@ -75,8 +74,12 @@ export const queueDependeeNotifier = (() => {
             return;
         }
 
-        const callNextTick = !dependeeNotifiers.length;
-        dependeeNotifiers.push(notifierCb);
+        if (!notifierCb || dependeeNotifiers.has(notifierCb)) {
+            return;
+        }
+
+        const callNextTick = !dependeeNotifiers.size;
+        dependeeNotifiers.add(notifierCb);
 
         if (callNextTick) {
             nextTick(execNotifiers);
@@ -86,10 +89,9 @@ export const queueDependeeNotifier = (() => {
 
 
 export function storeDependeeNotifiers (store) {
-    if (store && dependeeList.length) {
-        arrayForEach(dependeeList, dependeeCallback => {
+    if (store && dependeeList.size) {
+        for (let dependeeCallback of dependeeList) {
             store.add(dependeeCallback);
-        });
-
+        }
     }
 }

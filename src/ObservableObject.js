@@ -243,23 +243,6 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
         const dependees = this.dependees = new Set();
         const removeDependee = cb => {
             dependees.delete(cb);
-
-            // let index = dependees.length;
-            //
-            // if (index === 0) {
-            //     return;
-            // }
-            //
-            // let cbIndex = -1;
-            // while (cbIndex === -1 && --index !== -1) {
-            //     if (dependees[index] && dependees[index] === cb) {
-            //         cbIndex = index;
-            //         break;
-            //     }
-            // }
-            // if (cbIndex !== -1) {
-            //     arraySplice(dependees, cbIndex, 1);
-            // }
         };
 
         this.propName = propName;

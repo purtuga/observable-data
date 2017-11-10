@@ -12,26 +12,20 @@ import {
     stopDependeeNotifications,
     queueDependeeNotifier,
     isArray,
-    arrayForEach,
-    arraySplice,
-    arrayIndexOf
+    bindCallTo
 } from "./common"
 
 //==============================================================
 const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
 const objectDefineProp  = Object.defineProperty;
+const objectKeys        = Object.keys;
 const noop              = () => {};
 const isObservable      = arr => arr[OBSERVABLE_FLAG] === noop;
-const changeMethods     = [
-    'pop',
-    'push',
-    'shift',
-    'splice',
-    'unshift',
-    'sort',
-    'reverse'
-];
+const emit              = bindCallTo(EventEmitter.prototype.emit);
+const changeMethods     = ['pop', 'push', 'shift', 'splice', 'unshift', 'sort', 'reverse'];
+const addMethods        = ['push', 'splice', 'unshift'];
+const removeMethods     = ['pop', 'shift', 'splice'];
 
 /**
  * An Array like object with the added ability to listen to events.
@@ -81,8 +75,16 @@ let ObservableArray = EventEmitter.extend(/** @lends ObservableArray.prototype *
         }
 
         // Update mode... Emits event
+        let events = getNewEventObject();
+        if (_array[index] === args[1]) {
+            events.updated = [ args[1] ];
+        } else {
+            events.removed   = [ _array[index] ];
+            events.added     = [ args[1] ];
+        }
+
         let updateResponse = _array[index] = args[1];
-        notifyDependees(_array);
+        notifyDependees(_array, events);
 
         return updateResponse;
     }
@@ -92,28 +94,54 @@ function getInstance (obArray) {
     if (!PRIVATE.has(obArray)) {
         const dependees = new Set();
         let isQueued = false;
+        let nextEvent = null;
+        const storeEventData = events => {
+            if (!events) {
+                return;
+            }
+
+            if (!nextEvent) {
+                nextEvent = getNewEventObject();
+            }
+
+            objectKeys(events).forEach(eventName => {
+                if (!events[eventName]) {
+                    return;
+                }
+
+                if (!nextEvent[eventName]) {
+                    nextEvent[eventName] = [];
+                }
+
+                nextEvent[eventName].push(...events[eventName]);
+            });
+        };
         const inst = {
             dependees: dependees,
 
-            notify() {
+            notify(events) {
                 // Queue up calling all dependee notifiers
                 for (let cb of dependees) {
                     queueDependeeNotifier(cb);
                 }
 
+                storeEventData(events);
+
                 if (isQueued) {
                     return;
                 }
 
-                /**
-                 * ObservableArray was changed. Event will provide the value returned
-                 * by the Array method that made the change.
-                 *
-                 * @event ObservableArray#change
-                 * @type {*}
-                 */
+                isQueued = true;
                 nextTick(() => {
-                    EventEmitter.prototype.emit.call(obArray, "change");
+                    let eventData = nextEvent;
+                    nextEvent = null;
+                    /**
+                     * ObservableArray was changed.
+                     *
+                     * @event ObservableArray#change
+                     * @type {ObservableArray~ObservableArrayChangeEvent}
+                     */
+                    emit(obArray, "change", eventData);
                     isQueued = false;
                 });
             }
@@ -173,6 +201,9 @@ function makeArrayObservable (arr) {
 
             const origMethod    = newArrProto[method];
             const doEvents      = changeMethods.indexOf(method) !== -1;
+            const canAdd        = addMethods.indexOf(method)    !== -1;
+            const canRemove     = removeMethods.indexOf(method) !== -1;
+            const isArraySplice = method === "splice";
 
             objectDefineProp(newArrProto, method, {
                 value: function observable(...args){
@@ -196,7 +227,30 @@ function makeArrayObservable (arr) {
 
                     // If Array method can manipulate the array, then emit event
                     if (doEvents) {
-                        notifyDependees(this);
+                        let events = getNewEventObject();
+
+                        // Add Events
+                        if (canAdd) {
+                            if (isArraySplice) {
+                                if (args.length > 2) {
+                                    events.added = args.slice(2);
+                                }
+                            }
+                            else {
+                                events.added = args;
+                            }
+                        }
+
+                        if (canRemove) {
+                            if (isArraySplice) {
+                                events.removed = response;
+                            }
+                            else {
+                                events.removed = [ response ];
+                            }
+                        }
+
+                        notifyDependees(this, events);
                     }
 
                     return response;
@@ -232,8 +286,8 @@ function makeArrayObservable (arr) {
     return arr;
 }
 
-function notifyDependees(arrObj) {
-    getInstance(arrObj).notify();
+function notifyDependees(arrObj, events) {
+    getInstance(arrObj).notify(events);
 }
 
 /**
@@ -284,8 +338,20 @@ objectDefineProp(ObservableArray, "create", {
     }
 });
 
-export default ObservableArray;
+function getNewEventObject() {
+    /**
+     * The array was changed.
+     *
+     * @typedef {Object} ObservableArray~ObservableArrayChangeEvent
+     * @property {Array|null} added
+     * @property {Array|null} removed
+     * @property {Array|null} updated
+     */
+    return { added: null, removed: null, updated: null };
+}
 
+
+export default ObservableArray;
 export {
     setDependencyTracker,
     unsetDependencyTracker,
