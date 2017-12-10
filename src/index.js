@@ -3,7 +3,8 @@ import ObservableObject, { makeObservable } from "./ObservableObject"
 import {
     isPureObject,
     arrayForEach,
-    isArray }  from "./common"
+    isArray,
+    isObservable }  from "./common"
 
 //==================================================================
 
@@ -14,6 +15,9 @@ import {
  */
 export function observeAll(...data) {
     arrayForEach(data, dataItem => {
+        if (isObservable(dataItem)) {
+            return;
+        }
         if (isPureObject(dataItem)) {
             makeObservable(dataItem, null, true, propValue => {
                 if (propValue && isArray(propValue)) {

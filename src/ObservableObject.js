@@ -15,15 +15,14 @@ import {
     storeDependeeNotifiers,
     queueDependeeNotifier,
     bindCallTo,
-    arraySplice,
     arrayForEach,
     onInternalEvent,
-    isPureObject
+    isPureObject,
+    setObservableFlag
 } from "./common"
 
 //=======================================================
 const OBJECT                = Object;
-
 
 // aliases
 const objectCreate          = OBJECT.create;
@@ -196,9 +195,10 @@ function getInstance(observableObj){
     if (!PRIVATE.has(observableObj)) {
         const instData = EventEmitter.create();
         const watched = instData.watched = {};
-
-        instData.opt = objectExtend({}, ObservableObject.defaults);
         let isQueued = false;
+
+        setObservableFlag(observableObj);
+        instData.opt = objectExtend({}, ObservableObject.defaults);
         instData.notify = () => {
             if (isQueued) {
                 return;
@@ -461,7 +461,7 @@ export function createComputedProp(observable, propName, valueGenerator) {
 
         let isDestroyDone = false;
         const destroy = () => {
-            if (!isDestroyDone) {
+            if (!isDestroyDone && !inst.isDestroyed) {
                 isDestroyDone = true;
                 stopDependeeNotifications(dependencyChangeNotifier);
                 inst.watched[propName].destroy();

@@ -5,6 +5,7 @@ import Set          from "common-micro-libs/src/jsutils/es6-Set"
 import {
     PRIVATE,
     EV_STOP_DEPENDEE_NOTIFICATION,
+    OBSERVABLE_FLAG,
     onInternalEvent,
     storeDependeeNotifiers,
     setDependencyTracker,
@@ -12,16 +13,15 @@ import {
     stopDependeeNotifications,
     queueDependeeNotifier,
     isArray,
-    bindCallTo
+    bindCallTo,
+    setObservableFlag,
+    isObservable
 } from "./common"
 
 //==============================================================
-const OBSERVABLE_FLAG   = "___observable_array___";
 const ArrayPrototype    = Array.prototype;
 const objectDefineProp  = Object.defineProperty;
 const objectKeys        = Object.keys;
-const noop              = () => {};
-const isObservable      = arr => arr[OBSERVABLE_FLAG] === noop;
 const emit              = bindCallTo(EventEmitter.prototype.emit);
 const changeMethods     = ['pop', 'push', 'shift', 'splice', 'unshift', 'sort', 'reverse'];
 const addMethods        = ['push', 'splice', 'unshift'];
@@ -178,7 +178,7 @@ function makeArrayObservable (arr) {
         return;
     }
 
-    objectDefineProp(arr, OBSERVABLE_FLAG, { get: () => noop });
+    setObservableFlag(arr);
 
     const arrCurrentProto = arr.__proto__; // eslint-disable-line
     let newArrProto;
