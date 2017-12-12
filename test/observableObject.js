@@ -182,7 +182,7 @@ test("ObservableObject", t => {
     });
 
     t.test("Computed properties", st => {
-        st.plan(11);
+        st.plan(12);
 
         let obj = ObservableObject.create({
             firstName: "Paul",
@@ -204,6 +204,9 @@ test("ObservableObject", t => {
 
         obj.firstName = "Paul1";
         st.equal(obj.fullName, "Paul1 Tavares", "change to dependency prop updates Computed value imediately (no delay)");
+
+        ObservableObject.createComputed(obj, "fullName2", generateFullName, false);
+        st.equal(Object.keys(obj).filter(p => p === "fullName2").length, 0, "Creates non-enumerable computed props");
 
         delay()
             .then(() => {

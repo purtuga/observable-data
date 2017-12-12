@@ -315,10 +315,11 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
  * @param {String} propName
  * @param {Function} [valueGetter]
  * @param {Function} [valueSetter]
+ * @param {Boolean} [enumerable=true]
  *
  * @return {EventEmitter}
  */
-function makePropWatchable(observable, propName, valueGetter, valueSetter){
+function makePropWatchable(observable, propName, valueGetter, valueSetter, enumerable = true){
     let inst    = getInstance(observable);
     let watched = inst.watched;
 
@@ -353,7 +354,7 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter){
         propSetup.oldVal = propSetup.newVal = currentValue;
 
         objectDefineProperty(observable, propName, {
-            enumerable:     true,
+            enumerable,
             configurable:   true,
 
             // Getter will either delegate to the prior getter(),
@@ -409,8 +410,9 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter){
  * @param {Object} observable
  * @param {String} propName
  * @param {Function} valueGenerator
+ * @param {Boolean} [enumerable=true]
  */
-export function createComputedProp(observable, propName, valueGenerator) {
+export function createComputedProp(observable, propName, valueGenerator, enumerable = true) {
     if (observable && propName && valueGenerator) {
         let runValueGenerator = true;
         let propValue;
@@ -456,7 +458,7 @@ export function createComputedProp(observable, propName, valueGenerator) {
 
         dependencyChangeNotifier[IS_COMPUTED_NOTIFIER] = true;
 
-        const inst = makePropWatchable(observable, propName, valueGetter, valueSetter);
+        const inst = makePropWatchable(observable, propName, valueGetter, valueSetter, enumerable);
         inst.watched[propName].isComputed = true;
 
         let isDestroyDone = false;
