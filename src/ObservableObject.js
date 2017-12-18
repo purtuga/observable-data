@@ -455,24 +455,33 @@ export function createComputedProp(observable, propName, valueGenerator, enumera
             /* FIXME: should this anything? */
             return propValue;
         };
+        const inst = getInstance(observable);
 
         dependencyChangeNotifier[IS_COMPUTED_NOTIFIER] = true;
 
-        const inst = makePropWatchable(observable, propName, valueGetter, valueSetter, enumerable);
-        inst.watched[propName].isComputed = true;
+        // If this propName is already being watched, then first destroy that instance
+        if (propName in inst.watched) {
+            inst.watched[propName].destroy();
+            delete inst.watched[propName];
+        }
 
-        let isDestroyDone = false;
-        const destroy = () => {
-            if (!isDestroyDone && !inst.isDestroyed) {
-                isDestroyDone = true;
-                stopDependeeNotifications(dependencyChangeNotifier);
-                inst.watched[propName].destroy();
-                delete inst.watched[propName];
-                delete observable[propName];
-                observable[propName] = propValue;
+        makePropWatchable(observable, propName, valueGetter, valueSetter, enumerable);
+
+        inst.watched[propName].isComputed = true;
+        inst.watched[propName].onDestroy(() => {
+            stopDependeeNotifications(dependencyChangeNotifier);
+            delete inst.watched[propName];
+            delete observable[propName];
+            observable[propName] = propValue;
+        });
+
+        return Object.create({
+            destroy() {
+                if (inst.watched[propName]){
+                    inst.watched[propName].destroy(true);
+                }
             }
-        };
-        return Object.create({ destroy });
+        });
     }
 }
 
