@@ -536,7 +536,7 @@ export function makeObservable(observable, propName, deep, onEach) {
         if (deep) {
             arrayForEach(objectKeys(observable), key => {
                 if (observable[key] && isPureObject(observable[key])) {
-                    makeObservable(observable[key], null, deep);
+                    makeObservable(observable[key], null, deep, onEach);
                 }
 
                 if (onEach) {
