@@ -286,25 +286,29 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
 
         propSetup.queued = true;
 
-        const notifyListeners = () => {
-            const {propName, _obj:observable} = this;
-            propSetup.queued = false;
-            getInstance(observable).emit(propName, propSetup.newVal, propSetup.oldVal);
-            propSetup.oldVal = null;
-        };
-
         if (noDelay) {
-            notifyListeners();
+            this._emit();
             return;
         }
 
-        nextTick(() => notifyListeners());
+        nextTick(() => this._emit());
     },
 
+    _emit() {
+        this.queued = false;
+        getInstance(this._obj).emit(this.propName, this.newVal, this.oldVal);
+        this.oldVal = null;
+    },
+
+    /**
+     * Removes a callback from the list of dependees
+     * @param {Function} cb
+     */
     removeDependee(cb) {
         if (this.dependees.has(cb)) {
             this.dependees.delete(cb);
 
+            // Remove listener if no dependees
             if (this.rmDepEvListener && this.dependees.size === 0) {
                 this.rmDepEvListener.off();
                 this.rmDepEvListener = null;
@@ -317,6 +321,8 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
      */
     storeDependees() {
         storeDependeeNotifiers(this.dependees);
+
+        // If we have dependees, then setup an internal event bus listener
         if (this.dependees.size > 0 && !this.rmDepEvListener) {
             this.rmDepEvListener = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, this.removeDependee.bind(this));
         }
