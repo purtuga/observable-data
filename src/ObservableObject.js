@@ -240,19 +240,15 @@ function getInstance(observableObj){
  */
 const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototype */{
     init(observable, propName) {
-        const dependees = this.dependees = new Set();
-        const removeDependee = cb => {
-            dependees.delete(cb);
-        };
-
+        this.dependees = new Set();
         this.propName = propName;
         this._obj = observable;
 
-        let removeDependeeEvListener = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, removeDependee);
-
         this.onDestroy(() => {
-            dependees.clear();
-            removeDependeeEvListener.off();
+            this.dependees.clear();
+            if (this.rmDepEvListener) {
+                this.rmDepEvListener.off();
+            }
             this._obj = null;
         })
     },
@@ -303,6 +299,27 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
         }
 
         nextTick(() => notifyListeners());
+    },
+
+    removeDependee(cb) {
+        if (this.dependees.has(cb)) {
+            this.dependees.delete(cb);
+
+            if (this.rmDepEvListener && this.dependees.size === 0) {
+                this.rmDepEvListener.off();
+                this.rmDepEvListener = null;
+            }
+        }
+    },
+
+    /**
+     * Stores global dependees into this Property list of dependees
+     */
+    storeDependees() {
+        storeDependeeNotifiers(this.dependees);
+        if (this.dependees.size > 0 && !this.rmDepEvListener) {
+            this.rmDepEvListener = onInternalEvent(EV_STOP_DEPENDEE_NOTIFICATION, this.removeDependee.bind(this));
+        }
     }
 });
 
@@ -349,7 +366,6 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter, enume
     // then change this attribute to be watched
     if (delete observable[propName]) {
         const propSetup = watched[propName] = PropertySetup.create(observable, propName);
-        const dependees = propSetup.dependees;
 
         propSetup.oldVal = propSetup.newVal = currentValue;
 
@@ -360,7 +376,7 @@ function makePropWatchable(observable, propName, valueGetter, valueSetter, enume
             // Getter will either delegate to the prior getter(),
             // or return the value that was originally assigned to the property
             get: function(){
-                storeDependeeNotifiers(dependees);
+                propSetup.storeDependees();
                 return valueGetter ? valueGetter() : propSetup.newVal;
             },
 
