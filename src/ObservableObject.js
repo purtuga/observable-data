@@ -305,14 +305,11 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
      * @param {Function} cb
      */
     removeDependee(cb) {
-        if (this.dependees.has(cb)) {
-            this.dependees.delete(cb);
-
-            // Remove listener if no dependees
-            if (this.rmDepEvListener && this.dependees.size === 0) {
-                this.rmDepEvListener.off();
-                this.rmDepEvListener = null;
-            }
+        this.dependees.delete(cb);
+        // Remove listener if no dependees
+        if (this.rmDepEvListener && this.dependees.size === 0) {
+            this.rmDepEvListener.off();
+            this.rmDepEvListener = null;
         }
     },
 
