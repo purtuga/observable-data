@@ -275,9 +275,7 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
         const propSetup = this;
 
         // Queue up calling all dependee notifiers
-        for (let cb of this.dependees) {
-            queueDependeeNotifier(cb);
-        }
+        this.dependees.forEach(cb => queueDependeeNotifier(cb));
 
         // If emitting of events for this property was already queued, exit
         if (propSetup.queued) {

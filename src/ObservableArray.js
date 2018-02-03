@@ -121,10 +121,7 @@ function getInstance (obArray) {
 
             notify(events) {
                 // Queue up calling all dependee notifiers
-                for (let cb of dependees) {
-                    queueDependeeNotifier(cb);
-                }
-
+                dependees.forEach(cb => queueDependeeNotifier(cb));
                 storeEventData(events);
 
                 if (isQueued) {

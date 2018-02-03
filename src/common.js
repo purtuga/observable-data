@@ -65,9 +65,7 @@ export function stopDependeeNotifications(dependeeNotifier) {
 export const queueDependeeNotifier = (() => {
     const dependeeNotifiers = new Set();
     const execNotifiers     = () => {
-        for (let notifierCb of dependeeNotifiers) {
-            notifierCb();
-        }
+        dependeeNotifiers.forEach(notifierCb => notifierCb());
         dependeeNotifiers.clear();
     };
 
@@ -95,8 +93,6 @@ export const queueDependeeNotifier = (() => {
 
 export function storeDependeeNotifiers (store) {
     if (store && dependeeList.size) {
-        for (let dependeeCallback of dependeeList) {
-            store.add(dependeeCallback);
-        }
+        dependeeList.forEach(dependeeCallback => store.add(dependeeCallback));
     }
 }
