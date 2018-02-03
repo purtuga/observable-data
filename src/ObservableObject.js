@@ -682,6 +682,7 @@ ObservableObject.defaults = {
 
 export default ObservableObject;
 export {
+    ObservableObject,
     setDependencyTracker,
     unsetDependencyTracker,
     stopDependeeNotifications

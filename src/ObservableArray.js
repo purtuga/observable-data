@@ -353,6 +353,7 @@ function getNewEventObject() {
 
 export default ObservableArray;
 export {
+    ObservableArray,
     setDependencyTracker,
     unsetDependencyTracker,
     stopDependeeNotifications
