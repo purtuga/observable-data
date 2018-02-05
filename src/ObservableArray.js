@@ -5,7 +5,6 @@ import Set          from "common-micro-libs/src/jsutils/es6-Set"
 import {
     PRIVATE,
     EV_STOP_DEPENDEE_NOTIFICATION,
-    OBSERVABLE_FLAG,
     onInternalEvent,
     storeDependeeNotifiers,
     setDependencyTracker,
