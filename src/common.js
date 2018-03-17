@@ -24,7 +24,7 @@ export const arraySplice        = bindCallTo(ARRAY_PROTOTYPE.splice);
 export const arrayForEach       = bindCallTo(ARRAY_PROTOTYPE.forEach);
 export const isPureObject       = obj => obj && OBJECT_PROTOTYPE.toString.call(obj) === "[object Object]";
 export const isObservable       = obj => obj && obj[OBSERVABLE_FLAG] === NOOP;
-export const setObservableFlag  = obj => obj && Object.defineProperty(obj, OBSERVABLE_FLAG, { get: () => NOOP });
+export const setObservableFlag  = obj => obj && obj[OBSERVABLE_FLAG] !== NOOP && Object.defineProperty(obj, OBSERVABLE_FLAG, { get: () => NOOP, configurable: true });
 
 /**
  * Allows for adding a Dependee notifier to the global list of dependency trackers.
