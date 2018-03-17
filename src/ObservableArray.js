@@ -5,7 +5,6 @@ import Set          from "common-micro-libs/src/jsutils/es6-Set"
 import {
     PRIVATE,
     EV_STOP_DEPENDEE_NOTIFICATION,
-    OBSERVABLE_FLAG,
     onInternalEvent,
     storeDependeeNotifiers,
     setDependencyTracker,
@@ -314,7 +313,9 @@ objectDefineProp(ObservableArray, "create", {
         }
 
         makeArrayObservable(observable);
-        const observableProto = observable.__proto__; // eslint-disable-line
+        const observableProto = Object.create(observable.__proto__); // eslint-disable-line
+
+        // FIXME: we should be caching this new object (prototype) defined above...
 
         // Copy all methods in this prototype to the Array instance
         for (let prop in thisPrototype){
@@ -326,6 +327,9 @@ objectDefineProp(ObservableArray, "create", {
             });
             /* eslint-enable */
         }
+
+        objectDefineProp(observableProto, "constructor", { value: this });
+        observable.__proto__ = observableProto;
 
         if (observable.init) {
             observable.init.apply(observable, arguments);

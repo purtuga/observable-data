@@ -270,12 +270,15 @@ const PropertySetup = Compose.extend(/** @lends Observable~PropertySetup.prototy
      * Notifies everyone that is listening for events on this property
      *
      * @param [noDelay=false]
+     * @param [noDependees=false]
      */
-    notify(noDelay){
+    notify(noDelay, noDependees){
         const propSetup = this;
 
         // Queue up calling all dependee notifiers
-        this.dependees.forEach(cb => queueDependeeNotifier(cb));
+        if (!noDependees) {
+            this.dependees.forEach(cb => queueDependeeNotifier(cb));
+        }
 
         // If emitting of events for this property was already queued, exit
         if (propSetup.queued) {
@@ -635,7 +638,7 @@ export function unwatchProp(observable, propName, notifier) {
 export function notifyPropWatchers(observable, propName) {
     let watched = getInstance(observable).watched;
     if (watched[propName]) {
-        watched[propName].notify(true);
+        watched[propName].notify(true, true);
     }
 }
 

@@ -4,26 +4,28 @@
   "description": "Observable data structures. Listen for change events on Arrays and Objects",
   "main": "src/index.js",
   "scripts": {
-    "test": "tape test/**/*.js",
-    "build": "set NODE_ENV=production&&webpack"
+    "serve": "webpack-dev-server --config node_modules/Base/configs/webpack.dev.js --progress --hot --color --entry ./dev/index.js",
+    "build": "webpack --config node_modules/Base/configs/webpack.dev.js",
+    "build:ie": "webpack --config node_modules/Base/configs/webpack.prod.js --entry ./dev/index.js --output-path ./dev",
+    "build:prod": "webpack --config node_modules/Base/configs/webpack.prod.js",
+    "build:prod:min": "webpack --config node_modules/Base/configs/webpack.prod.uglify.js",
+    "dist": "npm run build:prod&&npm run build:prod:min",
+    "setup:dev": "node node_modules/Base/scripts/create-dev",
+    "test": "tape -r @std/esm test/**/*.js"
   },
-  "devDependencies": {
-    "@std/esm": "^0.9.2",
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.2",
-    "babel-preset-env": "^1.6.1",
-    "common-micro-libs": "github:purtuga/common-micro-libs#master",
-    "tape": "^4.8.0",
-    "webpack": "^3.8.1"
-  },
+  "author": "Paul Tavares",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/purtuga/observable-data.git"
   },
-  "author": "Paul Tavares",
-  "license": "MIT",
+  "homepage": "https://github.com/purtuga/observable-data#readme",
   "bugs": {
     "url": "https://github.com/purtuga/observable-data/issues"
   },
-  "homepage": "https://github.com/purtuga/observable-data#readme"
+  "@std/esm": { "cjs": true, "esm": "js" },
+  "devDependencies": {
+    "base":  "github:purtuga/Base#master",
+    "common-micro-libs": "github:purtuga/common-micro-libs#release/v2x"
+  }
 }

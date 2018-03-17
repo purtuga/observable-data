@@ -302,7 +302,7 @@ test("ObservableObject", t => {
     });
 
     t.test("Computed Emits Events", st => {
-        st.plan(8);
+        st.plan(9);
 
         let obj = ObservableObject.create({
             firstName: "Paul",
@@ -346,7 +346,14 @@ test("ObservableObject", t => {
             .then(() => {
                 st.equal(fullNameChgListener.count, 2, "Computed change Event fired on 2nd dependency change");
                 st.equal(obj.fullName, "john Smith", "new Computed value return after 2nd dependency change");
-            });
+
+                obj.emit("lastName");
+                return delay();
+            })
+            .then(() => {
+                st.equal(fullNameChgListener.count, 2, "Computed change Event NOT fired when observable.emit(depProp) is used");
+            })
+            .catch(e => console.log(e));
     });
 
     t.test("Computed properties with dependencies on other Computed", st => {
