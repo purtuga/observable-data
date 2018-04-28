@@ -22,7 +22,7 @@ test("makeObservable()", t => {
     t.equal(obj.on, undefined, "No .on() method");
     t.equal(obj.emit, undefined, "No .on() method");
     t.equal(obj.once, undefined, "No .on() method");
-    t.equal(Object.keys(obj).length, 1, "Object does not have additioanl props");
+    t.equal(Object.keys(obj).length, 1, "Object does not have additional props");
     t.equal(obj.destroy, undefined, "No .destroy() method");
 
     obj.firstName = "PAUL";

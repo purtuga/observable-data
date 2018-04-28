@@ -1,6 +1,6 @@
 {
   "name": "observable-data",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Observable data structures. Listen for change events on Arrays and Objects",
   "main": "src/index.js",
   "scripts": {
