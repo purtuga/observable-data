@@ -1,5 +1,21 @@
 # observable-data
 
+>   DEPRECATED
+>   This module is deprecated and will not be maintained. Use https://github.com/purtuga/observables instead.
+
+
+
+
+
+
+
+
+
+
+______
+
+
+
 Enable the ability for Arrays and Objects to emit events and for listeners to be attached to those data structures. Use it to create reactive interfaces or trigger logic when data changes. `ObservableObjects` also have the ability for Computed properties to be created on objects.
 
 Source: [github.com/purtuga/observable-data](https://github.com/purtuga/observable-data)

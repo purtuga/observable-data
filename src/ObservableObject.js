@@ -490,14 +490,16 @@ export function createComputedProp(observable, propName, valueGenerator, enumera
         inst.watched[propName].isComputed = true;
         inst.watched[propName].onDestroy(() => {
             stopDependeeNotifications(dependencyChangeNotifier);
-            delete inst.watched[propName];
+            if (inst.watched) {
+                delete inst.watched[propName];
+            }
             delete observable[propName];
             observable[propName] = propValue;
         });
 
         return Object.create({
             destroy() {
-                if (inst.watched[propName]){
+                if (inst.watched && inst.watched[propName]){
                     inst.watched[propName].destroy(true);
                 }
             }
